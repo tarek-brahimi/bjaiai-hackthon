@@ -1,0 +1,377 @@
+﻿<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analyse Photo/Video - Benevolat Citoyen</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #0f172a;
+            color: #e2e8f0;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container { max-width: 800px; margin: 0 auto; }
+        h1 {
+            text-align: center;
+            font-size: 1.8em;
+            margin-bottom: 10px;
+            color: #38bdf8;
+        }
+        .subtitle {
+            text-align: center;
+            color: #94a3b8;
+            margin-bottom: 30px;
+        }
+        .upload-zone {
+            border: 3px dashed #475569;
+            border-radius: 16px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: #1e293b;
+        }
+        .upload-zone:hover, .upload-zone.dragover {
+            border-color: #38bdf8;
+            background: #1e3a5f;
+        }
+        .upload-zone p { font-size: 1.1em; color: #94a3b8; }
+        .upload-zone .icon { font-size: 3em; margin-bottom: 10px; }
+        input[type="file"] { display: none; }
+        .btn {
+            display: inline-block;
+            padding: 12px 30px;
+            background: #2563eb;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            cursor: pointer;
+            margin-top: 15px;
+            transition: background 0.3s;
+        }
+        .btn:hover { background: #1d4ed8; }
+        .btn:disabled { background: #475569; cursor: not-allowed; }
+        .preview {
+            margin-top: 20px;
+            text-align: center;
+        }
+        .preview img, .preview video {
+            max-width: 100%;
+            max-height: 300px;
+            border-radius: 8px;
+            border: 2px solid #334155;
+        }
+        #result {
+            margin-top: 30px;
+            background: #1e293b;
+            border-radius: 12px;
+            padding: 20px;
+            display: none;
+        }
+        #result.show { display: block; }
+        .result-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: bold;
+        }
+        .badge-grand { background: #dc2626; color: white; }
+        .badge-moyen { background: #f59e0b; color: #1e293b; }
+        .badge-faible { background: #22c55e; color: #1e293b; }
+        .section {
+            background: #0f172a;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 12px;
+        }
+        .section h3 {
+            color: #38bdf8;
+            font-size: 0.9em;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+        }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .stat { text-align: center; }
+        .stat .value { font-size: 1.8em; font-weight: bold; color: #38bdf8; }
+        .stat .label { font-size: 0.8em; color: #94a3b8; }
+        ul { list-style: none; padding: 0; }
+        ul li { padding: 4px 0; border-bottom: 1px solid #1e293b; }
+        ul li:last-child { border: none; }
+        .contact { display: flex; justify-content: space-between; align-items: center; }
+        .contact .service { font-weight: bold; }
+        .contact .numero {
+            background: #dc2626;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        .loading {
+            text-align: center;
+            padding: 20px;
+            display: none;
+        }
+        .loading.show { display: block; }
+        .spinner {
+            border: 4px solid #334155;
+            border-top: 4px solid #38bdf8;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .error {
+            background: #7f1d1d;
+            border: 1px solid #dc2626;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 15px;
+            display: none;
+        }
+        .error.show { display: block; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Analyse Photo/Video</h1>
+        <p class="subtitle">Plateforme de Benevolat Citoyen - 100% Local</p>
+
+        <div class="upload-zone" id="dropZone">
+            <div class="icon">&#128247;</div>
+            <p>Glissez une image ou video ici</p>
+            <p style="font-size:0.85em; margin-top:8px;">ou cliquez pour selectionner</p>
+            <p style="font-size:0.75em; color:#64748b; margin-top:8px;">
+                Images: jpg, png, gif, webp | Videos: mp4, mov, avi, mkv (max 50 Mo)
+            </p>
+            <input type="file" id="fileInput" accept="image/*,video/*">
+        </div>
+
+        <div style="text-align:center;">
+            <button class="btn" id="analyzeBtn" disabled>Analyser</button>
+        </div>
+
+        <div class="preview" id="preview"></div>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>Analyse en cours...</p>
+        </div>
+
+        <div class="error" id="error"></div>
+
+        <div id="result">
+            <div class="result-header">
+                <h2 id="resultTitle"></h2>
+                <span class="badge" id="urgencyBadge"></span>
+            </div>
+
+            <div class="section">
+                <h3>Classification</h3>
+                <div class="grid">
+                    <div class="stat">
+                        <div class="value" id="confiance">-</div>
+                        <div class="label">Confiance</div>
+                    </div>
+                    <div class="stat">
+                        <div class="value" id="benevoles">-</div>
+                        <div class="label">Benevoles</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h3>Gravite & Urgence</h3>
+                <div class="grid">
+                    <div class="stat">
+                        <div class="value" id="gravite">-</div>
+                        <div class="label">Gravite</div>
+                    </div>
+                    <div class="stat">
+                        <div class="value" id="delai">-</div>
+                        <div class="label">Delai</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section" id="contactsSection" style="display:none;">
+                <h3>Contacts Urgents</h3>
+                <ul id="contactsList"></ul>
+            </div>
+
+            <div class="section">
+                <h3>Actions Immediates</h3>
+                <ul id="actionsList"></ul>
+            </div>
+
+            <div class="section">
+                <h3>Logistique</h3>
+                <ul id="logistiqueList"></ul>
+            </div>
+
+            <div class="section">
+                <h3>Risques de Securite</h3>
+                <ul id="risquesList"></ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const analyzeBtn = document.getElementById('analyzeBtn');
+        const preview = document.getElementById('preview');
+        const loading = document.getElementById('loading');
+        const error = document.getElementById('error');
+        const result = document.getElementById('result');
+        let selectedFile = null;
+
+        dropZone.addEventListener('click', () => fileInput.click());
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('dragover');
+        });
+        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            if (e.dataTransfer.files.length) {
+                handleFile(e.dataTransfer.files[0]);
+            }
+        });
+        fileInput.addEventListener('change', () => {
+            if (fileInput.files.length) handleFile(fileInput.files[0]);
+        });
+
+        function handleFile(file) {
+            selectedFile = file;
+            analyzeBtn.disabled = false;
+            error.classList.remove('show');
+            result.classList.remove('show');
+
+            if (file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    preview.innerHTML = '<img src="' + e.target.result + '" alt="Preview">';
+                };
+                reader.readAsDataURL(file);
+            } else if (file.type.startsWith('video/')) {
+                preview.innerHTML = '<video controls src="' + URL.createObjectURL(file) + '"></video>';
+            } else {
+                preview.innerHTML = '<p>Fichier: ' + file.name + '</p>';
+            }
+        }
+
+        analyzeBtn.addEventListener('click', async () => {
+            if (!selectedFile) return;
+
+            loading.classList.add('show');
+            result.classList.remove('show');
+            error.classList.remove('show');
+            analyzeBtn.disabled = true;
+
+            const formData = new FormData();
+            const isVideo = selectedFile.type.startsWith('video/');
+            formData.append(isVideo ? 'video' : 'image', selectedFile);
+
+            try {
+                const response = await fetch('/analyser-photo', { method: 'POST', body: formData });
+                const data = await response.json();
+
+                if (data.erreur) {
+                    error.textContent = data.message;
+                    error.classList.add('show');
+                } else {
+                    showResult(data);
+                }
+            } catch (e) {
+                error.textContent = 'Erreur reseau : ' + e.message;
+                error.classList.add('show');
+            } finally {
+                loading.classList.remove('show');
+                analyzeBtn.disabled = false;
+            }
+        });
+
+        function showResult(data) {
+            const m = data.mission;
+            const c = data.classification_locale;
+
+            document.getElementById('resultTitle').textContent = m.titre_court || 'Analyse';
+            document.getElementById('confiance').textContent = (c.confiance * 100).toFixed(1) + '%';
+            document.getElementById('benevoles').textContent = m.benevoles_recommandes || 0;
+            document.getElementById('gravite').textContent = m.gravite || '-';
+            document.getElementById('delai').textContent = m.delai_intervention || '-';
+
+            const badge = document.getElementById('urgencyBadge');
+            badge.textContent = 'URGENCE ' + (m.urgence || 'faible').toUpperCase();
+            badge.className = 'badge badge-' + (m.urgence === 'grand' ? 'grand' : m.urgence === 'moyen' ? 'moyen' : 'faible');
+
+            // Contacts
+            const contactsSection = document.getElementById('contactsSection');
+            const contactsList = document.getElementById('contactsList');
+            contactsList.innerHTML = '';
+            if (m.contacts_urgents && m.contacts_urgents.length > 0) {
+                contactsSection.style.display = 'block';
+                m.contacts_urgents.forEach(c => {
+                    const li = document.createElement('li');
+                    li.className = 'contact';
+                    li.innerHTML = '<span class="service">' + c.service + '</span>' +
+                        (c.numero ? '<span class="numero">' + c.numero + '</span>' : '<span>' + c.raison + '</span>');
+                    contactsList.appendChild(li);
+                });
+            } else {
+                contactsSection.style.display = 'none';
+            }
+
+            // Actions
+            fillList('actionsList', m.actions_immediates);
+
+            // Logistique
+            const logList = document.getElementById('logistiqueList');
+            logList.innerHTML = '';
+            if (m.logistique) {
+                if (m.logistique.nourriture && m.logistique.nourriture.length) {
+                    addListItem(logList, 'Nourriture: ' + m.logistique.nourriture.join(', '));
+                }
+                if (m.logistique.eau) {
+                    addListItem(logList, 'Eau: ' + m.logistique.eau);
+                }
+                if (m.logistique.vehicules_requis && m.logistique.vehicules_requis.length) {
+                    addListItem(logList, 'Vehicules: ' + m.logistique.vehicules_requis.join(', '));
+                }
+            }
+
+            // Risques
+            fillList('risquesList', m.risques_securite);
+
+            result.classList.add('show');
+        }
+
+        function fillList(id, items) {
+            const ul = document.getElementById(id);
+            ul.innerHTML = '';
+            if (items && items.length) {
+                items.forEach(item => addListItem(ul, item));
+            }
+        }
+
+        function addListItem(ul, text) {
+            const li = document.createElement('li');
+            li.textContent = text;
+            ul.appendChild(li);
+        }
+    </script>
+</body>
+</html>

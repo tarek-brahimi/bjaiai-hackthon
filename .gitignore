@@ -1,0 +1,6 @@
+# Ignorer les fichiers temporaires et secrets
+*.pyc
+__pycache__/
+.env
+venv/
+*.egg-info/
